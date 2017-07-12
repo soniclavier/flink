@@ -204,6 +204,16 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 		}
 
 		@Override
+		public void registerEventTimeTimer(long timestamp) {
+			throw new UnsupportedOperationException("register event-time timer not supported in this context");
+		}
+
+		@Override
+		public void registerProcessingTimeTimer(long timestamp) {
+			throw new UnsupportedOperationException("register processing-time timer not supported in this context");
+		}
+
+		@Override
 		public KeyedStateStore windowState() {
 			return throwingStore;
 		}

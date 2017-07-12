@@ -167,6 +167,10 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		return Mockito.any();
 	}
 
+	static InternalWindowFunction.OnTimerContext anyOnTimerContext() {
+		return Mockito.any();
+	}
+
 	static Trigger.OnMergeContext anyOnMergeContext() {
 		return Mockito.any();
 	}
@@ -2522,6 +2526,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
 		void deleteTimer(Trigger.TriggerContext ctx, long timestamp);
 
+		void registerTimer(WindowOperator.WindowContext ctx, long timestamp);
+
 		int numTimers(AbstractStreamOperatorTestHarness testHarness);
 
 		int numTimersOtherDomain(AbstractStreamOperatorTestHarness testHarness);
@@ -2568,6 +2574,11 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		@Override
 		public void deleteTimer(Trigger.TriggerContext ctx, long timestamp) {
 			ctx.deleteEventTimeTimer(timestamp);
+		}
+
+		@Override
+		public void registerTimer(WindowOperator.WindowContext ctx, long timestamp) {
+			ctx.registerEventTimeTimer(timestamp);
 		}
 
 		@Override
@@ -2671,6 +2682,11 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		}
 
 		@Override
+		public void registerTimer(WindowOperator.WindowContext ctx, long timestamp) {
+			ctx.registerProcessingTimeTimer(timestamp);
+		}
+
+		@Override
 		public int numTimers(AbstractStreamOperatorTestHarness testHarness) {
 			return testHarness.numProcessingTimeTimers();
 		}
@@ -2747,5 +2763,81 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 				InternalWindowFunction.InternalWindowContext context) {
 			assertEquals(testHarness.getProcessingTime(), context.currentProcessingTime());
 		}
+	}
+
+	/**
+	 * Tests ProcessWindowFunction.Context registerEventTimeTimer.
+	 */
+	@Test
+	public void testUserEventTimeTimer() throws Exception {
+		testUserTimeTimer(new EventTimeAdaptor());
+	}
+
+	/**
+	 * Tests ProcessWindowFunction.Context registerProcessingTimeTimer.
+	 */
+	@Test
+	public void testUserProcessingTimeTimer() throws Exception {
+		testUserTimeTimer(new ProcessingTimeAdaptor());
+	}
+
+	private void testUserTimeTimer(final TimeDomainAdaptor timeAdaptor) throws Exception {
+		WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
+		timeAdaptor.setIsEventTime(mockAssigner);
+		Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
+
+		InternalWindowFunction<Iterable<Integer>, Void, Integer, TimeWindow> mockWindowFunction = mockWindowFunction();
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Void> testHarness =
+			createWindowOperator(mockAssigner, mockTrigger, 0L, mockWindowFunction);
+
+		testHarness.open();
+
+		doAnswer(new Answer<TriggerResult>() {
+			@Override
+			public TriggerResult answer(InvocationOnMock invocation) throws Exception {
+				return TriggerResult.FIRE;
+			}
+		}).when(mockTrigger).onElement(Matchers.<Integer>anyObject(), anyLong(), anyTimeWindow(), anyTriggerContext());
+
+		timeAdaptor.advanceTime(testHarness, Long.MIN_VALUE);
+
+		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
+			.thenReturn(Arrays.asList(new TimeWindow(3, 6), new TimeWindow(0, 3)));
+
+		timeAdaptor.shouldFireOnTime(mockTrigger);
+
+		doAnswer(new Answer() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				WindowOperator.WindowContext context = (WindowOperator.WindowContext) invocationOnMock.getArguments()[2];
+				timeAdaptor.registerTimer(context, 1L);
+				return null;
+			}
+		}).when(mockWindowFunction).process(anyInt(), eq(new TimeWindow(0, 3)), anyInternalWindowContext(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
+
+		doAnswer(new Answer() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				WindowOperator.WindowContext context = (WindowOperator.WindowContext) invocationOnMock.getArguments()[2];
+				timeAdaptor.registerTimer(context, 4L);
+				return null;
+			}
+		}).when(mockWindowFunction).process(anyInt(), eq(new TimeWindow(3, 6)), anyInternalWindowContext(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
+
+		testHarness.processElement(new StreamRecord<>(0, 0L));
+
+		verify(mockWindowFunction, times(0)).onTimer(anyLong(), anyOnTimerContext(), WindowOperatorContractTest.<Void>anyCollector());
+
+		timeAdaptor.advanceTime(testHarness, 1L);
+
+		//Fire only the timer registered by TimeWindow(0, 3)
+		verify(mockWindowFunction, times(1)).onTimer(eq(1L), anyOnTimerContext(), WindowOperatorContractTest.<Void>anyCollector());
+
+		// clear is only called at cleanup time/GC time
+		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
+
+		assertEquals(2, testHarness.numKeyedStateEntries()); //window contents -> 1 Record in each window
+		assertEquals(3, timeAdaptor.numTimers(testHarness)); //2 window-timers + 1 user-timer(the timer that is yet to fire)
 	}
 }

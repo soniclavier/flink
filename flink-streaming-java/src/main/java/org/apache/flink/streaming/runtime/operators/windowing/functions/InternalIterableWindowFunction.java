@@ -45,6 +45,11 @@ public final class InternalIterableWindowFunction<IN, OUT, KEY, W extends Window
 	}
 
 	@Override
+	public void onTimer(long timestamp, OnTimerContext context, Collector<OUT> out) throws Exception {
+
+	}
+
+	@Override
 	public void clear(W window, InternalWindowContext context) throws Exception {
 
 	}

@@ -48,6 +48,7 @@ public final class InternalAggregateProcessWindowFunction<T, ACC, V, R, K, W ext
 	private final AggregateFunction<T, ACC, V> aggFunction;
 
 	private final InternalProcessWindowContext<V, R, K, W> ctx;
+	private final InternalProcessWindowOnTimerContext<V, R, K, W> onTimerContext;
 
 	public InternalAggregateProcessWindowFunction(
 			AggregateFunction<T, ACC, V> aggFunction,
@@ -55,6 +56,7 @@ public final class InternalAggregateProcessWindowFunction<T, ACC, V, R, K, W ext
 		super(windowFunction);
 		this.aggFunction = aggFunction;
 		this.ctx = new InternalProcessWindowContext<>(windowFunction);
+		this.onTimerContext = new InternalProcessWindowOnTimerContext<>(windowFunction);
 	}
 
 	@Override
@@ -69,6 +71,13 @@ public final class InternalAggregateProcessWindowFunction<T, ACC, V, R, K, W ext
 		this.ctx.internalContext = context;
 		ProcessWindowFunction<V, R, K, W> wrappedFunction = this.wrappedFunction;
 		wrappedFunction.process(key, ctx, Collections.singletonList(aggFunction.getResult(acc)), out);
+	}
+
+	@Override
+	public void onTimer(long timestamp, OnTimerContext context, Collector<R> out) throws Exception {
+		this.onTimerContext.internalOnTimerContext = context;
+		ProcessWindowFunction<V, R, K, W> wrappedFunction = this.wrappedFunction;
+		wrappedFunction.onTimer(timestamp, onTimerContext, out);
 	}
 
 	@Override

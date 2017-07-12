@@ -51,6 +51,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalAppendingState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
+import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.datastream.LegacyWindowOperatorType;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -180,6 +181,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	protected transient InternalTimerService<W> internalTimerService;
 
+	protected transient InternalTimerService<W> userFunctionTimerService;
+	protected transient UserFunctionTriggerable userFunctionTriggerable;
+	protected transient WindowOnTimerContextImpl windowOnTimerContext;
+
 	// ------------------------------------------------------------------------
 	// State restored in case of migration from an older version (backwards compatibility)
 	// ------------------------------------------------------------------------
@@ -226,6 +231,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			windowStateDescriptor, windowFunction, trigger, allowedLateness, lateDataOutputTag, LegacyWindowOperatorType.NONE);
 	}
 
+
 	/**
 	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
 	 */
@@ -271,9 +277,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		super.open();
 
 		timestampedCollector = new TimestampedCollector<>(output);
+		userFunctionTriggerable = new UserFunctionTriggerable();
+		windowOnTimerContext = new WindowOnTimerContextImpl(processContext);
 
 		internalTimerService =
 				getInternalTimerService("window-timers", windowSerializer, this);
+
+		userFunctionTimerService =
+				getInternalTimerService("user-timers", windowSerializer, userFunctionTriggerable);
 
 		triggerContext = new Context(null, null);
 		processContext = new WindowContext(null);
@@ -829,6 +840,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		@Override
+		public void registerEventTimeTimer(long timestamp) {
+			userFunctionTimerService.registerEventTimeTimer(window, timestamp);
+		}
+
+		@Override
+		public void registerProcessingTimeTimer(long timestamp) {
+			userFunctionTimerService.registerProcessingTimeTimer(window, timestamp);
+		}
+
+		@Override
 		public KeyedStateStore windowState() {
 			this.windowState.window = this.window;
 			return this.windowState;
@@ -837,6 +858,51 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		@Override
 		public KeyedStateStore globalState() {
 			return WindowOperator.this.getKeyedStateStore();
+		}
+	}
+
+	private class WindowOnTimerContextImpl implements InternalWindowFunction.OnTimerContext {
+		protected WindowContext context;
+
+		private TimeDomain timeDomain;
+
+		public WindowOnTimerContextImpl(WindowContext context) {
+			this.context = context;
+		}
+
+		@Override
+		public long currentProcessingTime() {
+			return context.currentProcessingTime();
+		}
+
+		@Override
+		public long currentWatermark() {
+			return context.currentWatermark();
+		}
+
+		@Override
+		public void registerEventTimeTimer(long timestamp) {
+			context.registerEventTimeTimer(timestamp);
+		}
+
+		@Override
+		public void registerProcessingTimeTimer(long timestamp) {
+			context.registerEventTimeTimer(timestamp);
+		}
+
+		@Override
+		public KeyedStateStore windowState() {
+			return context.windowState();
+		}
+
+		@Override
+		public KeyedStateStore globalState() {
+			return context.globalState();
+		}
+
+		@Override
+		public TimeDomain timeDomain() {
+			return timeDomain;
 		}
 	}
 
@@ -1033,6 +1099,23 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				", key=" + key +
 				", window=" + window +
 				'}';
+		}
+	}
+
+	/**
+	 * Triggerable class that gets called when the timers set using ProcessWindowFunction fires.
+	 */
+	public class UserFunctionTriggerable implements Triggerable<K, W> {
+		@Override
+		public void onEventTime(InternalTimer<K, W> timer) throws Exception {
+			windowOnTimerContext.timeDomain  = TimeDomain.EVENT_TIME;
+			userFunction.onTimer(timer.getTimestamp(), windowOnTimerContext, timestampedCollector);
+		}
+
+		@Override
+		public void onProcessingTime(InternalTimer<K, W> timer) throws Exception {
+			windowOnTimerContext.timeDomain  = TimeDomain.PROCESSING_TIME;
+			userFunction.onTimer(timer.getTimestamp(), windowOnTimerContext, timestampedCollector);
 		}
 	}
 

@@ -168,6 +168,15 @@ public class FoldApplyProcessWindowFunctionTest {
 			}
 
 			@Override
+			public void registerEventTimeTimer(long timerstamp) {
+			}
+
+			@Override
+			public void registerProcessingTimeTimer(long timestamp) {
+
+			}
+
+			@Override
 			public KeyedStateStore windowState() {
 				return new DummyKeyedStateStore();
 			}

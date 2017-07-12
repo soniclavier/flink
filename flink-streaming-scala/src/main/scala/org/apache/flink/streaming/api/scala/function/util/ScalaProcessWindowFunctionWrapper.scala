@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.scala.function.util
 
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.TimeDomain
 import org.apache.flink.streaming.api.functions.windowing.{ProcessWindowFunction => JProcessWindowFunction}
 import org.apache.flink.streaming.api.functions.windowing.{ProcessAllWindowFunction => JProcessAllWindowFunction}
 import org.apache.flink.streaming.api.scala.function.{ProcessWindowFunction => ScalaProcessWindowFunction}
@@ -56,8 +57,41 @@ final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
       override def windowState = context.windowState()
 
       override def globalState = context.globalState()
+
+      override def registerEventTimeTimer(time: Long): Unit =
+        context.registerEventTimeTimer(time)
+
+      override def registerProcessingTimeTimer(time: Long): Unit =
+        context.registerProcessingTimeTimer(time)
     }
     func.process(key, ctx, elements.asScala, out)
+  }
+
+  override def onTimer(time: Long,
+                       context: JProcessWindowFunction[IN, OUT, KEY, W]#OnTimerContext,
+                       out: Collector[OUT]): Unit = {
+
+    val onTimerContext = new func.OnTimerContext {
+      override def currentProcessingTime =  context.currentProcessingTime()
+
+      override def window = context.window()
+
+      override def windowState = context.windowState()
+
+      override def globalState = context.globalState()
+
+      override def currentWatermark = context.currentWatermark()
+
+      override def registerEventTimeTimer(time: Long) =
+        context.registerEventTimeTimer(time)
+
+      override def registerProcessingTimeTimer(time: Long): Unit =
+        context.registerProcessingTimeTimer(time)
+
+      override def timeDomain: TimeDomain = context.timeDomain()
+    }
+    func.onTimer(time, onTimerContext, out)
+
   }
 
   override def clear(context: JProcessWindowFunction[IN, OUT, KEY, W]#Context): Unit = {
@@ -71,6 +105,12 @@ final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
       override def windowState = context.windowState()
 
       override def globalState = context.globalState()
+
+      override def registerEventTimeTimer(time: Long): Unit =
+        context.registerEventTimeTimer(time)
+
+      override def registerProcessingTimeTimer(time: Long): Unit =
+        context.registerProcessingTimeTimer(time)
     }
     func.clear(ctx)
   }

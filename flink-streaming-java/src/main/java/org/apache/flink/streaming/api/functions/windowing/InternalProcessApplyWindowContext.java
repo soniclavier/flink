@@ -56,6 +56,16 @@ public class InternalProcessApplyWindowContext<IN, OUT, KEY, W extends Window>
 		return context.currentWatermark();
 	}
 
+	@Override
+	public void registerEventTimeTimer(long time) {
+		context.registerEventTimeTimer(time);
+	}
+
+	@Override
+	public void registerProcessingTimeTimer(long time) {
+		context.registerProcessingTimeTimer(time);
+	}
+
 	public KeyedStateStore windowState() {
 		return context.windowState();
 	}

@@ -23,6 +23,7 @@ import java.io.Serializable
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.functions.AbstractRichFunction
 import org.apache.flink.api.common.state.KeyedStateStore
+import org.apache.flink.streaming.api.TimeDomain
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
 
@@ -50,6 +51,16 @@ abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window]
     */
   @throws[Exception]
   def process(key: KEY, context: Context, elements: Iterable[IN], out: Collector[OUT])
+
+  /**
+    * Called when a timer set using [[Context]] fires.
+    * @param time The timestamp of the firing timer
+    * @param context An [[OnTimerContext]] that allows querying the [[TimeDomain]] of the
+    *                the firing timer, and allows registering timers.
+    * @param out A collector for emitting elements
+    */
+  @throws[Exception]
+  def onTimer(time: Long, context: OnTimerContext, out: Collector[OUT]) {}
 
   /**
     * Deletes any state in the [[Context]] when the Window is purged.
@@ -80,6 +91,16 @@ abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window]
     def currentWatermark: Long
 
     /**
+      * Registers a timer to be fired when the event time watermark passes the given time.
+      */
+    def registerEventTimeTimer(time: Long)
+
+    /**
+      * Registers a timer to be fired when processing time passes the given time.
+      */
+    def registerProcessingTimeTimer(time: Long)
+
+    /**
       * State accessor for per-key and per-window state.
       */
     def windowState: KeyedStateStore
@@ -88,6 +109,16 @@ abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window]
       * State accessor for per-key global state.
       */
     def globalState: KeyedStateStore
+  }
+
+
+  abstract class OnTimerContext extends Context {
+
+    /**
+      * The {@link TimeDomain} of the firing timer.
+      */
+    def timeDomain: TimeDomain
+
   }
 
 }

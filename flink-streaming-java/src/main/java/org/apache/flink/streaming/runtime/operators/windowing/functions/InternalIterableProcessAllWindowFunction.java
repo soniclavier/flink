@@ -58,6 +58,11 @@ public final class InternalIterableProcessAllWindowFunction<IN, OUT, W extends W
 	}
 
 	@Override
+	public void onTimer(long timestamp, OnTimerContext context, Collector<OUT> out) throws Exception {
+
+	}
+
+	@Override
 	public void clear(final W window, final InternalWindowContext context) throws Exception {
 		this.ctx.window = window;
 		this.ctx.internalContext = context;

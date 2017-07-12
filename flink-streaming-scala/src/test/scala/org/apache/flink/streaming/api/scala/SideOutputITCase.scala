@@ -220,6 +220,12 @@ class SideOutputITCase extends StreamingMultipleProgramsTestBase {
             out.collect(in._1)
           }
         }
+
+        override def onTimer(time: Long,
+                             context: OnTimerContext,
+                             out: Collector[String]): Unit = {
+
+        }
       })
 
     windowOperator

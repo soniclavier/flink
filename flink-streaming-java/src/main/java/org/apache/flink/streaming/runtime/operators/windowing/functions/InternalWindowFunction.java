@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.windowing.functions;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.state.KeyedStateStore;
+import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
@@ -43,6 +44,17 @@ public interface InternalWindowFunction<IN, OUT, KEY, W extends Window> extends 
 	void process(KEY key, W window, InternalWindowContext context, IN input, Collector<OUT> out) throws Exception;
 
 	/**
+	 * Called when a timer set using {@link InternalWindowContext} fires.
+	 *
+	 * @param timestamp The timestamp of the firing timer
+	 * @param context An {@link OnTimerContext} that allows querying the {@link TimeDomain} of the
+	 *                the firing timer, and allows registering timers.
+	 * @param out A collector for emitting elements
+	 * @throws Exception
+	 */
+	void onTimer(long timestamp, OnTimerContext context, Collector<OUT> out) throws Exception;
+
+	/**
 	 * Deletes any state in the {@code Context} when the Window is purged.
 	 *
 	 * @param context The context to which the window is being evaluated
@@ -60,8 +72,22 @@ public interface InternalWindowFunction<IN, OUT, KEY, W extends Window> extends 
 
 		long currentWatermark();
 
+		void registerEventTimeTimer(long timestamp);
+
+		void registerProcessingTimeTimer(long timestamp);
+
 		KeyedStateStore windowState();
 
 		KeyedStateStore globalState();
+	}
+
+	/**
+	 * Information available in an invocation of {@link #onTimer(long, OnTimerContext, Collector)}.
+	 */
+	interface OnTimerContext extends InternalWindowContext {
+		/**
+		 * The {@link TimeDomain} of the firing timer.
+		 */
+		TimeDomain timeDomain();
 	}
 }

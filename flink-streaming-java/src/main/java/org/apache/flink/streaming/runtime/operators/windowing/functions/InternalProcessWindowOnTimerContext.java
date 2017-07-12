@@ -18,27 +18,25 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing.functions;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.KeyedStateStore;
+import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**
- * Internal reusable context wrapper.
+ * Internal resuable OnTimerContext wrapper.
  *
  * @param <IN> The type of the input value.
  * @param <OUT> The type of the output value.
  * @param <KEY> The type of the key.
  * @param <W> The type of the window.
  */
-@Internal
-public class InternalProcessWindowContext<IN, OUT, KEY, W extends Window>
-	extends ProcessWindowFunction<IN, OUT, KEY, W>.Context {
+public class InternalProcessWindowOnTimerContext<IN, OUT, KEY, W extends Window> extends ProcessWindowFunction.OnTimerContext {
 
 	W window;
-	InternalWindowFunction.InternalWindowContext internalContext;
+	InternalWindowFunction.OnTimerContext internalOnTimerContext;
 
-	InternalProcessWindowContext(ProcessWindowFunction<IN, OUT, KEY, W> function) {
+	InternalProcessWindowOnTimerContext(ProcessWindowFunction<IN, OUT, KEY, W> function) {
 		function.super();
 	}
 
@@ -49,31 +47,36 @@ public class InternalProcessWindowContext<IN, OUT, KEY, W extends Window>
 
 	@Override
 	public long currentProcessingTime() {
-		return internalContext.currentProcessingTime();
+		return internalOnTimerContext.currentProcessingTime();
 	}
 
 	@Override
 	public long currentWatermark() {
-		return internalContext.currentWatermark();
+		return internalOnTimerContext.currentWatermark();
 	}
 
 	@Override
 	public void registerEventTimeTimer(long time) {
-		internalContext.registerEventTimeTimer(time);
+		internalOnTimerContext.registerEventTimeTimer(time);
 	}
 
 	@Override
 	public void registerProcessingTimeTimer(long time) {
-		internalContext.registerProcessingTimeTimer(time);
+		internalOnTimerContext.registerProcessingTimeTimer(time);
 	}
 
 	@Override
 	public KeyedStateStore windowState() {
-		return internalContext.windowState();
+		return internalOnTimerContext.windowState();
 	}
 
 	@Override
 	public KeyedStateStore globalState() {
-		return internalContext.globalState();
+		return internalOnTimerContext.globalState();
+	}
+
+	@Override
+	public TimeDomain timeDomain() {
+		return internalOnTimerContext.timeDomain();
 	}
 }

@@ -47,6 +47,11 @@ public final class InternalSingleValueAllWindowFunction<IN, OUT, W extends Windo
 	}
 
 	@Override
+	public void onTimer(long timestamp, OnTimerContext context, Collector<OUT> out) throws Exception {
+
+	}
+
+	@Override
 	public void clear(W window, InternalWindowContext context) throws Exception {
 
 	}

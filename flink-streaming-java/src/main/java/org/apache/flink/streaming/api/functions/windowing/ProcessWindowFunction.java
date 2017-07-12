@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.functions.windowing;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.state.KeyedStateStore;
+import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
@@ -51,6 +52,16 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> exte
 	public abstract void process(KEY key, Context context, Iterable<IN> elements, Collector<OUT> out) throws Exception;
 
 	/**
+	 * Called when a timer set using {@link Context} fires.
+	 * @param timestamp The timestamp of the firing timer
+	 * @param ctx An {@link OnTimerContext} that allows querying the {@link TimeDomain} of the
+	 *                the firing timer, and allows registering timers.
+	 * @param out A collector for emitting elements
+	 * @throws Exception
+	 */
+	public void onTimer(long timestamp, OnTimerContext ctx, Collector<OUT> out) throws Exception {}
+
+	/**
 	 * Deletes any state in the {@code Context} when the Window is purged.
 	 *
 	 * @param context The context to which the window is being evaluated
@@ -74,6 +85,16 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> exte
 		public abstract long currentWatermark();
 
 		/**
+		 * Registers a timer to be fired when the event time watermark passes the given time.
+		 */
+		public abstract void registerEventTimeTimer(long time);
+
+		/**
+		 * Registers a timer to be fired when processing time passes the given time.
+		 */
+		public abstract void registerProcessingTimeTimer(long time);
+
+		/**
 		 * State accessor for per-key and per-window state.
 		 *
 		 * <p><b>NOTE:</b>If you use per-window state you have to ensure that you clean it up
@@ -85,5 +106,16 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> exte
 		 * State accessor for per-key global state.
 		 */
 		public abstract KeyedStateStore globalState();
+	}
+
+	/**
+	 * Information available in an invocation of {@link #onTimer(long, OnTimerContext, Collector)}.
+	 */
+	public abstract class OnTimerContext extends ProcessWindowFunction.Context {
+		/**
+		 * The {@link TimeDomain} of the firing timer.
+		 */
+		public abstract TimeDomain timeDomain();
+
 	}
 }

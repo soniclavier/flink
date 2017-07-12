@@ -47,6 +47,11 @@ public final class InternalSingleValueWindowFunction<IN, OUT, KEY, W extends Win
 	}
 
 	@Override
+	public void onTimer(long timestamp, OnTimerContext context, Collector<OUT> out) throws Exception {
+
+	}
+
+	@Override
 	public void clear(W window, InternalWindowContext context) throws Exception {
 
 	}

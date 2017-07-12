@@ -419,6 +419,10 @@ class WindowTranslationTest {
               window: Context,
               input: Iterable[(String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach ( x => out.collect(x))
+
+          override def onTimer(time: Long,
+                               context: OnTimerContext,
+                               out: Collector[(String, Int)]): Unit = ???
         })
 
     val transform = window1
@@ -461,6 +465,10 @@ class WindowTranslationTest {
               window: Context,
               input: Iterable[(String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach ( x => out.collect(x))
+
+          override def onTimer(time: Long,
+                               context: OnTimerContext,
+                               out: Collector[(String, Int)]): Unit = {}
         })
 
     val transform = window1
@@ -1063,6 +1071,10 @@ class WindowTranslationTest {
               window: Context,
               input: Iterable[(String, String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._3))}
+
+          override def onTimer(time: Long,
+                               context: OnTimerContext,
+                               out: Collector[(String, Int)]): Unit = {}
         })
 
     val transform = window1
@@ -1106,6 +1118,10 @@ class WindowTranslationTest {
               window: Context,
               input: Iterable[(String, String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._3))}
+
+          override def onTimer(time: Long,
+                               context: OnTimerContext,
+                               out: Collector[(String, Int)]): Unit = {}
         })
 
     val transform = window1
@@ -1361,6 +1377,10 @@ class WindowTranslationTest {
               window: Context,
               input: Iterable[(String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._2))}
+
+          override def onTimer(time: Long,
+                               context: OnTimerContext,
+                               out: Collector[(String, Int)]): Unit = {}
         })
 
     val transform = window1
@@ -1402,6 +1422,10 @@ class WindowTranslationTest {
               window: Context,
               input: Iterable[(String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._2))}
+
+          override def onTimer(time: Long,
+                               context: OnTimerContext,
+                               out: Collector[(String, Int)]): Unit = {}
         })
 
     val transform = window1
@@ -1593,6 +1617,10 @@ class WindowTranslationTest {
               window: Context,
               input: Iterable[(String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._2))}
+
+          override def onTimer(time: Long,
+                               context: OnTimerContext,
+                               out: Collector[(String, Int)]): Unit = {}
         })
 
     val transform = window1
@@ -1906,6 +1934,10 @@ class WindowTranslationTest {
               window: Context,
               input: Iterable[(String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._2))}
+
+          override def onTimer(time: Long,
+                               context: OnTimerContext,
+                               out: Collector[(String, Int)]): Unit = {}
         })
 
     val transform = window1
@@ -2027,6 +2059,10 @@ class TestProcessWindowFunction
 
     input.foreach(e => out.collect((e._1, e._1, e._2)))
   }
+
+  override def onTimer(time: Long,
+                       context: OnTimerContext,
+                       out: Collector[(String, String, Int)]): Unit = {}
 }
 
 class TestFoldProcessWindowFunction
@@ -2040,6 +2076,10 @@ class TestFoldProcessWindowFunction
 
     input.foreach(e => out.collect((e._1, e._3)))
   }
+
+  override def onTimer(time: Long,
+                       context: OnTimerContext,
+                       out: Collector[(String, Int)]): Unit = {}
 }
 
 

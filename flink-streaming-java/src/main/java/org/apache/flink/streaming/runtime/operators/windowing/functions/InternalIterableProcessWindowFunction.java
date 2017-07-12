@@ -36,10 +36,12 @@ public final class InternalIterableProcessWindowFunction<IN, OUT, KEY, W extends
 	private static final long serialVersionUID = 1L;
 
 	private final InternalProcessWindowContext<IN, OUT, KEY, W> ctx;
+	private final InternalProcessWindowOnTimerContext<IN, OUT, KEY, W> onTimerContext;
 
 	public InternalIterableProcessWindowFunction(ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction) {
 		super(wrappedFunction);
 		this.ctx = new InternalProcessWindowContext<>(wrappedFunction);
+		this.onTimerContext = new InternalProcessWindowOnTimerContext<>(wrappedFunction);
 	}
 
 	@Override
@@ -48,6 +50,13 @@ public final class InternalIterableProcessWindowFunction<IN, OUT, KEY, W extends
 		this.ctx.internalContext = context;
 		ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction = this.wrappedFunction;
 		wrappedFunction.process(key, ctx, input, out);
+	}
+
+	@Override
+	public void onTimer(long timestamp, final OnTimerContext context, Collector<OUT> out) throws Exception {
+		this.onTimerContext.internalOnTimerContext = context;
+		ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction = this.wrappedFunction;
+		wrappedFunction.onTimer(timestamp, onTimerContext, out);
 	}
 
 	@Override
